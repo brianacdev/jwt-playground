@@ -1,30 +1,19 @@
 import "dotenv/config";
 import { isEqual, pick, camelCase, keysIn, mapKeys } from "lodash";
 import useKeyUtil from "./key-util";
+import { base64UrlDecodeObject, base64UrlEncodeObject } from "./base64url";
 import { createSign, createVerify, randomBytes, createSecretKey } from "node:crypto";
 
 type CryEnv = { privateKey: string; publicKey: string; secret: string };
 
-const cryEnvs = mapKeys(
-  pick(
-    process.env,
-    keysIn(process.env).filter((p) => p.startsWith("CRY_")),
-  ),
-  (_, key) => camelCase(key.slice(4)),
-) as CryEnv;
-
-function base64UrlEncodeObject<T extends Record<string, any>>(payload: T): string {
-  return Buffer.from(JSON.stringify(payload))
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
+function parseEnv<T>(env: Record<string, any>, prefix = "CRY_"): T {
+  if (!env) return {} as T;
+  var keys = keysIn(env).filter((p) => p.startsWith(prefix));
+  var envObj = pick(env, keys);
+  return mapKeys(envObj, (_, key) => camelCase(key.slice(prefix.length))) as T;
 }
 
-function base64UrlDecodeObject<T extends Record<string, any>>(base64UrlText: string): T {
-  const base64Text = base64UrlText.replace(/-/g, "+").replace(/_/g, "/");
-  return JSON.parse(Buffer.from(base64Text, "base64").toString("utf8"));
-}
+const cryEnvs = parseEnv<CryEnv>(process.env);
 
 async function run(env: CryEnv) {
   const keyUtil = await useKeyUtil(env.privateKey, env.publicKey);
